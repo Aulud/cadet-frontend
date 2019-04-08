@@ -1,4 +1,4 @@
-import { Colors, FormGroup, InputGroup, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Button, Colors, FormGroup, InputGroup, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { ColDef, GridApi, GridReadyEvent } from 'ag-grid';
 import { AgGridReact } from 'ag-grid-react';
@@ -10,8 +10,6 @@ import { RouteComponentProps } from 'react-router';
 
 import GradingWorkspaceContainer from '../../../containers/academy/grading/GradingWorkspaceContainer';
 import { stringParamToInt } from '../../../utils/paramParseHelpers';
-// import { GradingStatuses } from '../../assessment/assessmentShape';
-import { controlButton } from '../../commons';
 import ContentDisplay from '../../commons/ContentDisplay';
 import GradingHistory from './GradingHistory';
 import GradingNavLink from './GradingNavLink';
@@ -124,13 +122,15 @@ class Grading extends React.Component<IGradingProps, State> {
         {
           headerName: 'Group',
           field: 'groupName',
-          maxWidth: 90
+          maxWidth: 120
         },
         {
-          headerName: 'Edit',
+          headerName: '',
           field: '',
           cellRendererFramework: GradingNavLink,
-          maxWidth: 75
+          maxWidth: 40,
+          suppressSorting: true,
+          suppressFilter: true
         },
         { headerName: 'Question Count', field: 'questionCount', hide: true },
         { headerName: 'Questions Graded', field: 'gradedCount', hide: true },
@@ -190,24 +190,27 @@ class Grading extends React.Component<IGradingProps, State> {
               onChange={this.handleFilterChange}
             />
           </FormGroup>
-
-          <div className="checkboxPanel">
-            <label>Show All Submissions:</label>
-            &nbsp;&nbsp;
-            <input
-              name="showAllSubmissions"
-              type="checkbox"
-              checked={this.state.groupFilterEnabled}
-              onChange={this.handleGroupsFilter}
-            />
+        </div>
+          
+        <div className="ag-grid-button">
+          <div className="ag-grid-buttons left">
+            <Button active={this.state.groupFilterEnabled} icon={IconNames.GIT_REPO}
+              intent={this.state.groupFilterEnabled ? Intent.PRIMARY : Intent.NONE}
+              onClick={this.handleGroupsFilter}>
+              <div className="ag-grid-button-text hidden-xs">Show all groups</div>
+            </Button>
+          </div>
+          <div className="ag-grid-buttons right">
+            <Button icon={IconNames.EXPORT} onClick={this.exportCSV}>
+              <div className="ag-grid-button-text hidden-xs">Export to CSV</div>
+            </Button>
           </div>
         </div>
 
         <hr />
-        <br />
 
         <div className="Grading">
-          <div className="ag-grid-parent ag-theme-fresh">
+          <div className="ag-grid-parent ag-theme-balham">
             <AgGridReact
               gridAutoHeight={true}
               enableColResize={true}
@@ -219,9 +222,6 @@ class Grading extends React.Component<IGradingProps, State> {
               pagination={true}
               paginationPageSize={50}
             />
-          </div>
-          <div className="ag-grid-export-button">
-            {controlButton('Export to CSV', IconNames.EXPORT, this.exportCSV)}
           </div>
         </div>
       </div>
@@ -244,10 +244,9 @@ class Grading extends React.Component<IGradingProps, State> {
     }
   };
 
-  private handleGroupsFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const checkStatus = event.target.checked;
-    this.setState({ groupFilterEnabled: checkStatus });
-    this.props.handleFetchGradingOverviews(!checkStatus);
+  private handleGroupsFilter = () => {
+    this.setState({ groupFilterEnabled: !this.state.groupFilterEnabled });
+    this.props.handleFetchGradingOverviews(this.state.groupFilterEnabled);
   };
 
   private onGridReady = (params: GridReadyEvent) => {

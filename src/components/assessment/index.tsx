@@ -25,6 +25,7 @@ import AssessmentWorkspaceContainer from '../../containers/assessment/Assessment
 import { beforeNow, getPrettyDate } from '../../utils/dateHelpers';
 import { assessmentCategoryLink, stringParamToInt } from '../../utils/paramParseHelpers';
 import {
+  AssessmentCategories,
   AssessmentCategory,
   AssessmentStatuses,
   GradingStatuses,
@@ -279,6 +280,8 @@ class Assessment extends React.Component<IAssessmentProps, State> {
  *   is to be set for final submission ("betcha" functionality)
  * @param renderAttemptButton will only render the attempt button if true, regardless
  *   of attempt status.
+ * @param renderGradingStatus will only render the grading status if true, regardless
+ *   of the state of manual grading.
  */
 const makeOverviewCard = (
   overview: IAssessmentOverview,
@@ -339,7 +342,10 @@ const makeOverviewCardTitle = (
   <div className="row listing-title">
     <Text ellipsize={true} className={'col-xs-10'}>
       <h4>
-        {overview.title} {renderGradingStatus ? makeGradingStatus(overview.gradingStatus) : null}
+        {overview.title} {renderGradingStatus && (
+          overview.category === AssessmentCategories.Mission ||
+          overview.category === AssessmentCategories.Sidequest)
+          ? makeGradingStatus(overview.gradingStatus) : null}
       </h4>
     </Text>
     <div className="col-xs-2">{makeSubmissionButton(overview, index, setBetchaAssessment)}</div>
@@ -357,17 +363,21 @@ const makeGradingStatus = (gradingStatus: string) => {
       intent = Intent.SUCCESS;
       tooltip = 'Fully graded';
       break;
-
     case GradingStatuses.grading:
       iconName = IconNames.TIME;
       intent = Intent.WARNING;
       tooltip = 'Grading in progress';
       break;
-
-    default:
+    case GradingStatuses.ungraded:
       iconName = IconNames.CROSS;
       intent = Intent.DANGER;
       tooltip = 'Not graded yet';
+      break;
+    default:
+      // Shows error message if grading status is not intended for display
+      iconName = IconNames.WARNING_SIGN;
+      intent = Intent.PRIMARY;
+      tooltip = `Error! Please inform Source Academy administrators.`;
       break;
   }
 

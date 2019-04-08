@@ -159,7 +159,7 @@ class Editor extends React.PureComponent<IEditorProps, {}> {
             ref={this.AceEditor}
             fontSize={14}
             height="100%"
-            highlightActiveLine={false}
+            highlightActiveLine={true}
             mode="javascript"
             onChange={this.onChangeMethod}
             onValidate={this.onValidateMethod}

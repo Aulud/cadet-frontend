@@ -10,6 +10,7 @@ import { RouteComponentProps } from 'react-router';
 
 import GradingWorkspaceContainer from '../../../containers/academy/grading/GradingWorkspaceContainer';
 import { stringParamToInt } from '../../../utils/paramParseHelpers';
+// import { GradingStatuses } from '../../assessment/assessmentShape';
 import { controlButton } from '../../commons';
 import ContentDisplay from '../../commons/ContentDisplay';
 import GradingHistory from './GradingHistory';
@@ -49,14 +50,19 @@ export interface IStateProps {
   gradingOverviews?: GradingOverview[];
 }
 
+/** Component to render in table - grading status */
+const GradingStatus = (props: GradingNavLinkProps) => {
+  return <GradingHistory data={props.data} exp={false} grade={false} status={true} />;
+};
+
 /** Component to render in table - marks */
 const GradingMarks = (props: GradingNavLinkProps) => {
-  return <GradingHistory data={props.data} exp={false} grade={true} />;
+  return <GradingHistory data={props.data} exp={false} grade={true} status={false} />;
 };
 
 /** Component to render in table - XP */
 const GradingExp = (props: GradingNavLinkProps) => {
-  return <GradingHistory data={props.data} exp={true} grade={false} />;
+  return <GradingHistory data={props.data} exp={true} grade={false} status={false} />;
 };
 
 class Grading extends React.Component<IGradingProps, State> {
@@ -68,8 +74,20 @@ class Grading extends React.Component<IGradingProps, State> {
     this.state = {
       columnDefs: [
         { headerName: 'Assessment Name', field: 'assessmentName' },
-        { headerName: 'Category', field: 'assessmentCategory', maxWidth: 150 },
+        { headerName: 'Category', field: 'assessmentCategory', maxWidth: 120 },
         { headerName: 'Student Name', field: 'studentName' },
+        {
+          headerName: 'Status',
+          field: 'gradingStatus',
+          cellRendererFramework: GradingStatus,
+          maxWidth: 90,
+          // Specify custom ordering of grading states: none > graded > grading > ungraded
+          // Sorting in ascending order thus brings ungraded submissions to top
+          // Comparison done by string length
+          comparator: (valueA, valueB, nodeA, nodeB, isInverted) => {
+            return valueB.length - valueA.length;
+          }
+        },
         {
           headerName: 'Grade',
           field: '',
@@ -106,14 +124,16 @@ class Grading extends React.Component<IGradingProps, State> {
         {
           headerName: 'Group',
           field: 'groupName',
-          maxWidth: 120
+          maxWidth: 90
         },
         {
           headerName: 'Edit',
           field: '',
           cellRendererFramework: GradingNavLink,
-          maxWidth: 70
+          maxWidth: 75
         },
+        { headerName: 'Question Count', field: 'questionCount', hide: true },
+        { headerName: 'Questions Graded', field: 'gradedCount', hide: true },
         { headerName: 'Initial Grade', field: 'initialGrade', hide: true },
         { headerName: 'Grade Adjustment', field: 'gradeAdjustment', hide: true },
         { headerName: 'Initial XP', field: 'initialXp', hide: true },
@@ -126,7 +146,6 @@ class Grading extends React.Component<IGradingProps, State> {
       ],
 
       filterValue: '',
-
       groupFilterEnabled: false
     };
   }
@@ -166,7 +185,7 @@ class Grading extends React.Component<IGradingProps, State> {
               id="filterBar"
               large={false}
               leftIcon="filter"
-              placeholder="Enter any text(e.g. mission)"
+              placeholder="Enter any text (e.g. mission)"
               value={this.state.filterValue}
               onChange={this.handleFilterChange}
             />

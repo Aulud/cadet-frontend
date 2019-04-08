@@ -112,7 +112,7 @@ const mockClosedAssessmentOverviews: IAssessmentOverview[] = [
     status: AssessmentStatuses.submitted,
     story: 'mission-3',
     xp: 4,
-    gradingStatus: 'none'
+    gradingStatus: 'graded'
   },
   {
     category: AssessmentCategories.Sidequest,
@@ -129,7 +129,7 @@ const mockClosedAssessmentOverviews: IAssessmentOverview[] = [
     status: AssessmentStatuses.submitted,
     story: null,
     xp: 5,
-    gradingStatus: 'none'
+    gradingStatus: 'ungraded'
   }
 ];
 
@@ -197,7 +197,7 @@ const mockToneMatrixLibrary: Library = {
 
 export const mockAssessmentQuestions: Array<IProgrammingQuestion | IMCQQuestion> = [
   {
-    answer: 'display("answer1");',
+    answer: 'display("answer");',
     content: `
 This question has an id of \`0\`.
 

@@ -1,4 +1,9 @@
-import { AssessmentCategory, IQuestion, MCQChoice } from '../../assessment/assessmentShape';
+import {
+  AssessmentCategory,
+  GradingStatus,
+  IQuestion,
+  MCQChoice
+} from '../../assessment/assessmentShape';
 
 /**
  * Information on a Grading, for a particular student submission
@@ -21,6 +26,9 @@ export type GradingOverview = {
   studentName: string;
   submissionId: number;
   groupName: string;
+  gradingStatus: GradingStatus;
+  questionCount: number;
+  gradedCount: number;
 };
 
 /**

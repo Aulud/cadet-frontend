@@ -179,11 +179,17 @@ function* backendSaga(): SagaIterator {
       refreshToken: state.session.refreshToken
     }));
 
-    const filterToGroup = (action as actionTypes.IAction).payload;
+    const {pageNo, filterToGroup} = (action as actionTypes.IAction).payload;
+    // tslint:disable-next-line
+    console.log({pageNo, filterToGroup});
 
-    const gradingOverviews = yield call(getGradingOverviews, tokens, filterToGroup);
+    const gradingOverviews = yield call(getGradingOverviews, tokens, pageNo, filterToGroup);
     if (gradingOverviews) {
-      yield put(actions.updateGradingOverviews(gradingOverviews));
+      yield put(actions.updateGradingOverviews(gradingOverviews.overviews));
+      // tslint:disable-next-line
+      console.log(gradingOverviews.paginateDets);
+      yield put(actions.updatePaginateDetails(gradingOverviews.paginateDets));
+      yield call(showWarningMessage, `Value of currPage is ${gradingOverviews.paginateDets.pageNo}`);
     }
   });
 
@@ -412,16 +418,20 @@ async function postAssessment(id: number, tokens: Tokens): Promise<Response | nu
  */
 async function getGradingOverviews(
   tokens: Tokens,
+  pageNo: number,
   group: boolean
-): Promise<GradingOverview[] | null> {
-  const response = await request(`grading?group=${group}`, 'GET', {
+): Promise<object | null> {
+  const response = await request(`grading?pageNo=${pageNo}&group=${group}`, 'GET', {
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
     shouldRefresh: true
   });
   if (response) {
     const gradingOverviews = await response.json();
-    return gradingOverviews.map((overview: any) => {
+    // tslint:disable-next-line
+    console.log(gradingOverviews);
+    const arr = gradingOverviews.submissions;
+    const entries = arr.map((overview: any) => {
       const gradingOverview: GradingOverview = {
         assessmentId: overview.assessment.id,
         assessmentName: overview.assessment.title,
@@ -447,6 +457,10 @@ async function getGradingOverviews(
       };
       return gradingOverview;
     });
+    return {
+      overviews: entries as GradingOverview[],
+      paginateDets: gradingOverviews.paginateDets
+    };
   } else {
     return null; // invalid accessToken _and_ refreshToken
   }

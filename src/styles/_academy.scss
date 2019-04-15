@@ -208,25 +208,35 @@
   }
 }
 
-.ag-grid-button > div {
-  display: inline-block;
+.ag-grid-controls {
   box-sizing: border-box;
-  width: 50%;
+  display: inline-block;
+  width: 25%;
 
   .pt-icon {
     margin-right: 0;
   }
 
-   div {
+  div {
     margin-left: 7px;
   }
 }
 
-.ag-grid-buttons.left {
+.ag-grid-controls.left {
   text-align: left;
 }
 
-.ag-grid-buttons.right {
+.ag-grid-controls.paginate {
+  margin-right: 0px;
+  width: 50%;
+
+  span {
+    margin: 0 12px 0 12px;
+    font-weight: 700;
+  }
+}
+
+.ag-grid-controls.right {
   text-align: right;
 }
 

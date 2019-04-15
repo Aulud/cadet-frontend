@@ -41,11 +41,13 @@ export interface IGradingWorkspaceParams {
 }
 
 export interface IDispatchProps {
-  handleFetchGradingOverviews: (filterToGroup?: boolean) => void;
+  handleFetchGradingOverviews: (pageNo: number, filterToGroup?: boolean) => void;
 }
 
 export interface IStateProps {
+  currPage?: number;
   gradingOverviews?: GradingOverview[];
+  maxPages?: number;
 }
 
 /** Component to render in table - grading status */
@@ -144,7 +146,6 @@ class Grading extends React.Component<IGradingProps, State> {
         { headerName: 'Max XP', field: 'maxXp', hide: true },
         { headerName: 'Bonus XP', field: 'xpBonus', hide: true }
       ],
-
       filterValue: '',
       groupFilterEnabled: false
     };
@@ -180,7 +181,7 @@ class Grading extends React.Component<IGradingProps, State> {
     const grid = (
       <div className="GradingContainer">
         <div>
-          <FormGroup label="Filter:" labelFor="text-input" inline={true}>
+          <FormGroup label="Search:" labelFor="text-input" inline={true}>
             <InputGroup
               id="filterBar"
               large={false}
@@ -192,15 +193,29 @@ class Grading extends React.Component<IGradingProps, State> {
           </FormGroup>
         </div>
           
-        <div className="ag-grid-button">
-          <div className="ag-grid-buttons left">
+        <div>
+          <div className="ag-grid-controls left">
             <Button active={this.state.groupFilterEnabled} icon={IconNames.GIT_REPO}
               intent={this.state.groupFilterEnabled ? Intent.PRIMARY : Intent.NONE}
               onClick={this.handleGroupsFilter}>
               <div className="ag-grid-button-text hidden-xs">Show all groups</div>
             </Button>
           </div>
-          <div className="ag-grid-buttons right">
+          <div className="ag-grid-controls paginate">
+            <Button icon={IconNames.CHEVRON_BACKWARD} onClick={this.handleLoadFirst} 
+                minimal={true} disabled={this.props.currPage! < 2} />
+              <Button icon={IconNames.CHEVRON_LEFT} onClick={this.handleLoadPrev} 
+                minimal={true} disabled={this.props.currPage! < 2} />
+              <Button className = "ag-paginate-info hidden-xs" icon={IconNames.DRAG_HANDLE_VERTICAL}
+                rightIcon={IconNames.DRAG_HANDLE_VERTICAL} minimal = {true} disabled={true}>
+               {`Page ${this.props.currPage} of ${this.props.maxPages}`}
+              </Button>
+              <Button icon={IconNames.CHEVRON_RIGHT} onClick={this.handleLoadNext} 
+                minimal={true} disabled={this.props.currPage! >= this.props.maxPages!} />
+              <Button icon={IconNames.CHEVRON_FORWARD} onClick={this.handleLoadEnd} 
+                minimal={true} disabled={this.props.currPage! >= this.props.maxPages!} />
+          </div>
+          <div className="ag-grid-controls right">
             <Button icon={IconNames.EXPORT} onClick={this.exportCSV}>
               <div className="ag-grid-button-text hidden-xs">Export to CSV</div>
             </Button>
@@ -220,7 +235,8 @@ class Grading extends React.Component<IGradingProps, State> {
               onGridReady={this.onGridReady}
               rowData={data}
               pagination={true}
-              paginationPageSize={50}
+              paginationPageSize={6}
+              suppressPaginationPanel={true}
             />
           </div>
         </div>
@@ -228,7 +244,7 @@ class Grading extends React.Component<IGradingProps, State> {
     );
     return (
       <ContentDisplay
-        loadContentDispatch={this.props.handleFetchGradingOverviews}
+        loadContentDispatch={this.handleLoadFirst}
         display={this.props.gradingOverviews === undefined ? loadingDisplay : grid}
         fullWidth={false}
       />
@@ -245,8 +261,36 @@ class Grading extends React.Component<IGradingProps, State> {
   };
 
   private handleGroupsFilter = () => {
-    this.setState({ groupFilterEnabled: !this.state.groupFilterEnabled });
-    this.props.handleFetchGradingOverviews(this.state.groupFilterEnabled);
+    const newState = !this.state.groupFilterEnabled;
+    this.setState({ groupFilterEnabled: newState });
+    this.props.handleFetchGradingOverviews(1, newState);
+    // tslint:disable-next-line
+    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+  };
+
+  private handleLoadFirst = () => {
+    this.props.handleFetchGradingOverviews(1, this.state.groupFilterEnabled);
+    // this.setState({ currPage: 1 });
+    // tslint:disable-next-line
+    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+  };
+
+  private handleLoadPrev = () => {
+    this.props.handleFetchGradingOverviews(this.props.currPage! - 1, this.state.groupFilterEnabled);
+    // tslint:disable-next-line
+    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+  };
+
+  private handleLoadNext = () => {
+    this.props.handleFetchGradingOverviews(this.props.currPage! + 1, this.state.groupFilterEnabled);
+    // tslint:disable-next-line
+    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+  };
+
+  private handleLoadEnd = () => {
+    this.props.handleFetchGradingOverviews(this.props.maxPages!, this.state.groupFilterEnabled);
+    // tslint:disable-next-line
+    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
   };
 
   private onGridReady = (params: GridReadyEvent) => {

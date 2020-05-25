@@ -1,10 +1,4 @@
-import {
-  Icon,
-  IconName,
-  Intent,
-  Position,
-  Tooltip
-} from '@blueprintjs/core';
+import { Icon, IconName, Intent, Position, Tooltip } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 
 import * as React from 'react';
@@ -60,7 +54,7 @@ class GradingHistory extends React.Component<GradingHistoryProps, {}> {
           break;
         default:
           iconName = IconNames.BAN_CIRCLE;
-          tooltip = "Not applicable";
+          tooltip = 'Not applicable';
           intent = Intent.PRIMARY;
       }
 
@@ -119,7 +113,8 @@ class GradingHistory extends React.Component<GradingHistoryProps, {}> {
           <GradingMarks />
         ) : this.props.status ? (
           <GradingStatus />
-        ) : null}}
+        ) : null}
+        }
       </div>
     );
   }

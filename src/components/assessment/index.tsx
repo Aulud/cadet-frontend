@@ -342,10 +342,12 @@ const makeOverviewCardTitle = (
   <div className="row listing-title">
     <Text ellipsize={true} className={'col-xs-10'}>
       <h4>
-        {overview.title} {renderGradingStatus && (
-          overview.category === AssessmentCategories.Mission ||
+        {overview.title}{' '}
+        {renderGradingStatus &&
+        (overview.category === AssessmentCategories.Mission ||
           overview.category === AssessmentCategories.Sidequest)
-          ? makeGradingStatus(overview.gradingStatus) : null}
+          ? makeGradingStatus(overview.gradingStatus)
+          : null}
       </h4>
     </Text>
     <div className="col-xs-2">{makeSubmissionButton(overview, index, setBetchaAssessment)}</div>

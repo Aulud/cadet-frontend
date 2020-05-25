@@ -179,17 +179,32 @@ function* backendSaga(): SagaIterator {
       refreshToken: state.session.refreshToken
     }));
 
-    const {pageNo, filterToGroup} = (action as actionTypes.IAction).payload;
+    const {
+      pageSize,
+      pageNo,
+      searchTags,
+      filterToGroup,
+      filterModel,
+      sortModel
+    } = (action as actionTypes.IAction).payload;
     // tslint:disable-next-line
-    console.log({pageNo, filterToGroup});
+    console.log({ pageSize, pageNo, searchTags, filterToGroup, filterModel, sortModel });
 
-    const gradingOverviews = yield call(getGradingOverviews, tokens, pageNo, filterToGroup);
+    const gradingOverviews = yield call(
+      getGradingOverviews,
+      tokens,
+      pageSize,
+      pageNo,
+      searchTags,
+      filterToGroup,
+      filterModel,
+      sortModel
+    );
     if (gradingOverviews) {
       yield put(actions.updateGradingOverviews(gradingOverviews.overviews));
       // tslint:disable-next-line
       console.log(gradingOverviews.paginateDets);
       yield put(actions.updatePaginateDetails(gradingOverviews.paginateDets));
-      yield call(showWarningMessage, `Value of currPage is ${gradingOverviews.paginateDets.pageNo}`);
     }
   });
 
@@ -412,20 +427,35 @@ async function postAssessment(id: number, tokens: Tokens): Promise<Response | nu
 }
 
 /*
- * GET /grading
+ * POST /grading
  * @params group - a boolean if true gets the submissions from the grader's group
  * @returns {Array} GradingOverview[]
  */
 async function getGradingOverviews(
   tokens: Tokens,
+  pageSize: number,
   pageNo: number,
-  group: boolean
+  searchTags: string[],
+  group: boolean,
+  filterModel: object,
+  sortModel: object
 ): Promise<object | null> {
-  const response = await request(`grading?pageNo=${pageNo}&group=${group}`, 'GET', {
+  const response = await request(`grading`, 'POST', {
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
+    body: {
+      options: {
+        filterModel: { filterModel },
+        group: `${group}`,
+        pageSize,
+        pageNo,
+        searchTags: [searchTags],
+        sortModel: { sortModel }
+      }
+    },
     shouldRefresh: true
   });
+
   if (response) {
     const gradingOverviews = await response.json();
     // tslint:disable-next-line

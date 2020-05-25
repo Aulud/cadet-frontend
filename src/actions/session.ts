@@ -34,11 +34,22 @@ export const fetchGrading = (submissionId: number) => ({
  * @param filterToGroup - param when set to true, only shows submissions under the group
  * of the grader
  */
-export const fetchGradingOverviews = (pageNo: number, filterToGroup: boolean) => ({
+export const fetchGradingOverviews = (
+  pageSize: number,
+  pageNo: number,
+  searchTags: string[],
+  filterToGroup: boolean,
+  filterModel: object,
+  sortModel: object
+) => ({
   type: actionTypes.FETCH_GRADING_OVERVIEWS,
   payload: {
+    pageSize,
     pageNo,
-    filterToGroup
+    searchTags,
+    filterToGroup,
+    filterModel,
+    sortModel
   }
 });
 

@@ -1,10 +1,20 @@
-import { Button, Colors, FormGroup, InputGroup, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
+import {
+  Button,
+  Colors,
+  ControlGroup,
+  Intent,
+  Menu,
+  MenuItem,
+  NonIdealState,
+  Spinner,
+  TagInput
+} from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { ItemListRenderer, ItemRenderer, Select } from '@blueprintjs/select';
 import { ColDef, GridApi, GridReadyEvent } from 'ag-grid';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid/dist/styles/ag-grid.css';
 import 'ag-grid/dist/styles/ag-theme-balham.css';
-import { sortBy } from 'lodash';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 
@@ -22,8 +32,10 @@ import { OwnProps as GradingWorkspaceProps } from './GradingWorkspace';
  */
 type State = {
   columnDefs: ColDef[];
-  filterValue: string;
+  searchTags: string[];
   groupFilterEnabled: boolean;
+  pageSize: number;
+  pageSizeDesc: string;
 };
 
 type GradingNavLinkProps = {
@@ -41,7 +53,14 @@ export interface IGradingWorkspaceParams {
 }
 
 export interface IDispatchProps {
-  handleFetchGradingOverviews: (pageNo: number, filterToGroup?: boolean) => void;
+  handleFetchGradingOverviews: (
+    pageSize: number,
+    pageNo: number,
+    searchTags: string[],
+    filterToGroup: boolean,
+    filterModel: object,
+    sortModel: object
+  ) => void;
 }
 
 export interface IStateProps {
@@ -73,24 +92,52 @@ class Grading extends React.Component<IGradingProps, State> {
 
     this.state = {
       columnDefs: [
-        { headerName: 'Assessment Name', field: 'assessmentName' },
-        { headerName: 'Category', field: 'assessmentCategory', maxWidth: 120 },
-        { headerName: 'Student Name', field: 'studentName' },
+        {
+          headerName: 'Assessment Name',
+          field: 'assessmentName',
+          suppressFilter: true
+        },
+        {
+          headerName: 'Category',
+          field: 'assessmentCategory',
+          maxWidth: 120,
+          suppressFilter: true
+        },
+        {
+          headerName: 'Student Name',
+          field: 'studentName',
+          suppressFilter: true
+        },
         {
           headerName: 'Status',
           field: 'gradingStatus',
           cellRendererFramework: GradingStatus,
           maxWidth: 90,
-          // Specify custom ordering of grading states: none > graded > grading > ungraded
+          suppressFilter: true
+          // This column has a custom sort order: ungraded > grading > graded > none (N/A)
           // Sorting in ascending order thus brings ungraded submissions to top
-          // Comparison done by string length
-          comparator: (valueA, valueB, nodeA, nodeB, isInverted) => {
-            return valueB.length - valueA.length;
-          }
         },
         {
           headerName: 'Grade',
-          field: '',
+          field: 'gradeDisplay',
+          filter: 'agNumberColumnFilter',
+          filterParams: {
+            applyButton: true,
+            // Enforce 50ms delay after 'APPLY' button
+            // Ensures ag-grid has time to update filter values in filter model prior to API call
+            debounceMs: 50,
+            filterOptions: [
+              'equals',
+              'notEqual',
+              'lessThanOrEqual',
+              'greaterThanOrEqual',
+              'inRange'
+            ],
+            inRangeInclusive: true,
+            // Keep filter state after reloading data
+            newRowsAction: 'keep',
+            suppressAndOrCondition: true
+          },
           cellRendererFramework: GradingMarks,
           maxWidth: 100,
           cellStyle: params => {
@@ -99,32 +146,34 @@ class Grading extends React.Component<IGradingProps, State> {
             } else {
               return {};
             }
-          },
-          comparator: (valueA, valueB, nodeA, nodeB, isInverted) => {
-            if (nodeA && nodeB) {
-              return nodeA.data.currentGrade - nodeB.data.currentGrade;
-            } else {
-              return valueA - valueB;
-            }
           }
         },
         {
           headerName: 'XP',
-          field: '',
+          field: 'xpDisplay',
+          filter: 'agNumberColumnFilter',
+          filterParams: {
+            applyButton: true,
+            debounceMs: 50,
+            filterOptions: [
+              'equals',
+              'notEqual',
+              'lessThanOrEqual',
+              'greaterThanOrEqual',
+              'inRange'
+            ],
+            inRangeInclusive: true,
+            newRowsAction: 'keep',
+            suppressAndOrCondition: true
+          },
           cellRendererFramework: GradingExp,
-          maxWidth: 100,
-          comparator: (valueA, valueB, nodeA, nodeB, isInverted) => {
-            if (nodeA && nodeB) {
-              return nodeA.data.currentXp - nodeB.data.currentXp;
-            } else {
-              return valueA - valueB;
-            }
-          }
+          maxWidth: 100
         },
         {
           headerName: 'Group',
           field: 'groupName',
-          maxWidth: 120
+          maxWidth: 120,
+          suppressFilter: true
         },
         {
           headerName: '',
@@ -146,8 +195,10 @@ class Grading extends React.Component<IGradingProps, State> {
         { headerName: 'Max XP', field: 'maxXp', hide: true },
         { headerName: 'Bonus XP', field: 'xpBonus', hide: true }
       ],
-      filterValue: '',
-      groupFilterEnabled: false
+      groupFilterEnabled: false,
+      pageSize: 4,
+      pageSizeDesc: '4 entries per page',
+      searchTags: []
     };
   }
 
@@ -155,6 +206,21 @@ class Grading extends React.Component<IGradingProps, State> {
     const submissionId: number | null = stringParamToInt(this.props.match.params.submissionId);
     // default questionId is 0 (the first question)
     const questionId: number = stringParamToInt(this.props.match.params.questionId) || 0;
+
+    const PageSizeSelect = Select.ofType<string>();
+    const pageSizeOpts: string[] = ['10', '20', '25', '40', 'All'];
+    const renderPageSizeMenu: ItemListRenderer<string> = ({
+      items,
+      itemsParentRef,
+      query,
+      renderItem
+    }) => {
+      const renderedItems = items.map(renderItem);
+      return <Menu ulRef={itemsParentRef}>{renderedItems}</Menu>;
+    };
+    const renderPageSizeChoice: ItemRenderer<string> = (size, { handleClick, modifiers }) => {
+      return <MenuItem active={modifiers.active} key={size} onClick={handleClick} text={size} />;
+    };
 
     /* Create a workspace to grade a submission. */
     if (submissionId !== null) {
@@ -173,52 +239,85 @@ class Grading extends React.Component<IGradingProps, State> {
         visual={<Spinner large={true} />}
       />
     );
-    const data = sortBy(this.props.gradingOverviews, [
-      (a: GradingOverview) => -a.assessmentId,
-      (a: GradingOverview) => -a.submissionId
-    ]);
 
     const grid = (
       <div className="GradingContainer">
-        <div>
-          <FormGroup label="Search:" labelFor="text-input" inline={true}>
-            <InputGroup
-              id="filterBar"
-              large={false}
-              leftIcon="filter"
-              placeholder="Enter any text (e.g. mission)"
-              value={this.state.filterValue}
-              onChange={this.handleFilterChange}
-            />
-          </FormGroup>
-        </div>
-          
-        <div>
-          <div className="ag-grid-controls left">
-            <Button active={this.state.groupFilterEnabled} icon={IconNames.GIT_REPO}
-              intent={this.state.groupFilterEnabled ? Intent.PRIMARY : Intent.NONE}
-              onClick={this.handleGroupsFilter}>
-              <div className="ag-grid-button-text hidden-xs">Show all groups</div>
-            </Button>
+        <div className="GradingControls">
+          <div className="pagination-controls">
+            <ControlGroup fill={false} vertical={false}>
+              <PageSizeSelect
+                className="pageSizeDropdown"
+                filterable={false}
+                itemListRenderer={renderPageSizeMenu}
+                itemRenderer={renderPageSizeChoice}
+                items={pageSizeOpts}
+                onItemSelect={this.handleChangePageSize}
+                popoverProps={{ minimal: true }}
+              >
+                <Button text={'Show ' + this.state.pageSizeDesc} rightIcon="caret-down" />
+              </PageSizeSelect>
+              <TagInput
+                className="searchBar"
+                large={false}
+                leftIcon="filter"
+                placeholder="Search by student, assessment, category or group"
+                values={this.state.searchTags}
+                onChange={this.handleSearchChange}
+              />
+            </ControlGroup>
           </div>
-          <div className="ag-grid-controls paginate">
-            <Button icon={IconNames.CHEVRON_BACKWARD} onClick={this.handleLoadFirst} 
-                minimal={true} disabled={this.props.currPage! < 2} />
-              <Button icon={IconNames.CHEVRON_LEFT} onClick={this.handleLoadPrev} 
-                minimal={true} disabled={this.props.currPage! < 2} />
-              <Button className = "ag-paginate-info hidden-xs" icon={IconNames.DRAG_HANDLE_VERTICAL}
-                rightIcon={IconNames.DRAG_HANDLE_VERTICAL} minimal = {true} disabled={true}>
-               {`Page ${this.props.currPage} of ${this.props.maxPages}`}
+
+          <div>
+            <div className="ag-grid-controls left">
+              <Button
+                active={this.state.groupFilterEnabled}
+                icon={IconNames.GIT_REPO}
+                intent={this.state.groupFilterEnabled ? Intent.PRIMARY : Intent.NONE}
+                onClick={this.handleGroupsFilter}
+              >
+                <div className="ag-grid-button-text hidden-xs">Show all groups</div>
               </Button>
-              <Button icon={IconNames.CHEVRON_RIGHT} onClick={this.handleLoadNext} 
-                minimal={true} disabled={this.props.currPage! >= this.props.maxPages!} />
-              <Button icon={IconNames.CHEVRON_FORWARD} onClick={this.handleLoadEnd} 
-                minimal={true} disabled={this.props.currPage! >= this.props.maxPages!} />
-          </div>
-          <div className="ag-grid-controls right">
-            <Button icon={IconNames.EXPORT} onClick={this.exportCSV}>
-              <div className="ag-grid-button-text hidden-xs">Export to CSV</div>
-            </Button>
+            </div>
+            <div className="ag-grid-controls paginate">
+              <Button
+                icon={IconNames.CHEVRON_BACKWARD}
+                onClick={this.handleLoadFirst}
+                minimal={true}
+                disabled={this.props.currPage! < 2}
+              />
+              <Button
+                icon={IconNames.CHEVRON_LEFT}
+                onClick={this.handleLoadPrev}
+                minimal={true}
+                disabled={this.props.currPage! < 2}
+              />
+              <Button
+                className="ag-paginate-info hidden-xs"
+                icon={IconNames.DRAG_HANDLE_VERTICAL}
+                rightIcon={IconNames.DRAG_HANDLE_VERTICAL}
+                minimal={true}
+                disabled={true}
+              >
+                {`Page ${this.props.currPage} of ${this.props.maxPages}`}
+              </Button>
+              <Button
+                icon={IconNames.CHEVRON_RIGHT}
+                onClick={this.handleLoadNext}
+                minimal={true}
+                disabled={this.props.currPage! >= this.props.maxPages!}
+              />
+              <Button
+                icon={IconNames.CHEVRON_FORWARD}
+                onClick={this.handleLoadEnd}
+                minimal={true}
+                disabled={this.props.currPage! >= this.props.maxPages!}
+              />
+            </div>
+            <div className="ag-grid-controls right">
+              <Button icon={IconNames.EXPORT} onClick={this.exportCSV}>
+                <div className="ag-grid-button-text hidden-xs">Export to CSV</div>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -227,16 +326,23 @@ class Grading extends React.Component<IGradingProps, State> {
         <div className="Grading">
           <div className="ag-grid-parent ag-theme-balham">
             <AgGridReact
-              gridAutoHeight={true}
+              // Grid properties
               enableColResize={true}
               enableSorting={true}
+              enableServerSideFilter={true}
+              enableServerSideSorting={true}
               enableFilter={true}
-              columnDefs={this.state.columnDefs}
-              onGridReady={this.onGridReady}
-              rowData={data}
-              pagination={true}
-              paginationPageSize={6}
+              gridAutoHeight={true}
+              pagination={false}
+              suppressChangeDetection={true}
               suppressPaginationPanel={true}
+              // Grid data
+              columnDefs={this.state.columnDefs}
+              rowData={this.props.gradingOverviews}
+              // Grid events
+              onFilterChanged={this.handleGridUpdate}
+              onSortChanged={this.handleGridUpdate}
+              onGridReady={this.onGridReady}
             />
           </div>
         </div>
@@ -251,46 +357,108 @@ class Grading extends React.Component<IGradingProps, State> {
     );
   }
 
-  private handleFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const changeVal = event.target.value;
-    this.setState({ filterValue: changeVal });
+  // Reloads data when pagination page size changes
+  private handleChangePageSize = (item: string, event?: React.SyntheticEvent<HTMLElement>) => {
+    const newPageSize = item === 'All' ? 100000 : Number(item);
+    const newPageSizeDesc = item === 'All' ? 'all entries' : item + ' entries per page';
 
-    if (this.gridApi) {
-      this.gridApi.setQuickFilter(changeVal);
-    }
+    this.setState({ pageSize: newPageSize, pageSizeDesc: newPageSizeDesc });
+
+    this.props.handleFetchGradingOverviews(
+      newPageSize,
+      1,
+      this.state.searchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
   };
 
+  // Reloads data when search tags updated
+  private handleSearchChange = (newSearchTags: string[]) => {
+    this.setState({ searchTags: newSearchTags });
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      1,
+      newSearchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
+  };
+
+  // Reloads data when option to show students of all groups is toggled
   private handleGroupsFilter = () => {
     const newState = !this.state.groupFilterEnabled;
     this.setState({ groupFilterEnabled: newState });
-    this.props.handleFetchGradingOverviews(1, newState);
-    // tslint:disable-next-line
-    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      1,
+      this.state.searchTags,
+      newState,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
+  };
+
+  // Reloads data when filter or sort model of grid changes
+  private handleGridUpdate = () => {
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      1,
+      this.state.searchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
   };
 
   private handleLoadFirst = () => {
-    this.props.handleFetchGradingOverviews(1, this.state.groupFilterEnabled);
-    // this.setState({ currPage: 1 });
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      1,
+      this.state.searchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi ? this.gridApi.getFilterModel() : {},
+      this.gridApi ? this.gridApi.getSortModel() : {}
+    );
     // tslint:disable-next-line
-    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+    console.log(`Current page: ${this.props.currPage}, maximum page: ${this.props.maxPages}`);
+    // tslint:disable-next-line
+    console.log(`Submissions in REDUX store: ${this.props.gradingOverviews!}`);
   };
 
   private handleLoadPrev = () => {
-    this.props.handleFetchGradingOverviews(this.props.currPage! - 1, this.state.groupFilterEnabled);
-    // tslint:disable-next-line
-    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      this.props.currPage! - 1,
+      this.state.searchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
   };
 
   private handleLoadNext = () => {
-    this.props.handleFetchGradingOverviews(this.props.currPage! + 1, this.state.groupFilterEnabled);
-    // tslint:disable-next-line
-    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      this.props.currPage! + 1,
+      this.state.searchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
   };
 
   private handleLoadEnd = () => {
-    this.props.handleFetchGradingOverviews(this.props.maxPages!, this.state.groupFilterEnabled);
-    // tslint:disable-next-line
-    console.log(`Current page in props: ${this.props.currPage}, maximum page in state: ${this.props.maxPages}`);
+    this.props.handleFetchGradingOverviews(
+      this.state.pageSize,
+      this.props.maxPages!,
+      this.state.searchTags,
+      this.state.groupFilterEnabled,
+      this.gridApi!.getFilterModel(),
+      this.gridApi!.getSortModel()
+    );
   };
 
   private onGridReady = (params: GridReadyEvent) => {

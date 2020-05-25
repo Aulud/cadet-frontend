@@ -9,7 +9,8 @@ import {
   UPDATE_ASSESSMENT_OVERVIEWS,
   UPDATE_GRADING,
   UPDATE_GRADING_OVERVIEWS,
-  UPDATE_HISTORY_HELPERS
+  UPDATE_HISTORY_HELPERS,
+  UPDATE_PAGINATE_DETAILS
 } from '../actions/actionTypes';
 import { defaultSession, ISessionState } from './states';
 
@@ -65,6 +66,12 @@ export const reducer: Reducer<ISessionState> = (state = defaultSession, action: 
       return {
         ...state,
         gradingOverviews: action.payload
+      };
+    case UPDATE_PAGINATE_DETAILS:
+      return {
+        ...state,
+        currPage: action.payload.currPage,
+        maxPages: action.payload.maxPages
       };
     default:
       return state;

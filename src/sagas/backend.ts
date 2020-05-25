@@ -179,11 +179,32 @@ function* backendSaga(): SagaIterator {
       refreshToken: state.session.refreshToken
     }));
 
-    const filterToGroup = (action as actionTypes.IAction).payload;
+    const {
+      pageSize,
+      pageNo,
+      searchTags,
+      filterToGroup,
+      filterModel,
+      sortModel
+    } = (action as actionTypes.IAction).payload;
+    // tslint:disable-next-line
+    console.log({ pageSize, pageNo, searchTags, filterToGroup, filterModel, sortModel });
 
-    const gradingOverviews = yield call(getGradingOverviews, tokens, filterToGroup);
+    const gradingOverviews = yield call(
+      getGradingOverviews,
+      tokens,
+      pageSize,
+      pageNo,
+      searchTags,
+      filterToGroup,
+      filterModel,
+      sortModel
+    );
     if (gradingOverviews) {
-      yield put(actions.updateGradingOverviews(gradingOverviews));
+      yield put(actions.updateGradingOverviews(gradingOverviews.overviews));
+      // tslint:disable-next-line
+      console.log(gradingOverviews.paginateDets);
+      yield put(actions.updatePaginateDetails(gradingOverviews.paginateDets));
     }
   });
 
@@ -406,22 +427,41 @@ async function postAssessment(id: number, tokens: Tokens): Promise<Response | nu
 }
 
 /*
- * GET /grading
+ * POST /grading
  * @params group - a boolean if true gets the submissions from the grader's group
  * @returns {Array} GradingOverview[]
  */
 async function getGradingOverviews(
   tokens: Tokens,
-  group: boolean
-): Promise<GradingOverview[] | null> {
-  const response = await request(`grading?group=${group}`, 'GET', {
+  pageSize: number,
+  pageNo: number,
+  searchTags: string[],
+  group: boolean,
+  filterModel: object,
+  sortModel: object
+): Promise<object | null> {
+  const response = await request(`grading`, 'POST', {
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
+    body: {
+      options: {
+        filterModel: { filterModel },
+        group: `${group}`,
+        pageSize,
+        pageNo,
+        searchTags: [searchTags],
+        sortModel: { sortModel }
+      }
+    },
     shouldRefresh: true
   });
+
   if (response) {
     const gradingOverviews = await response.json();
-    return gradingOverviews.map((overview: any) => {
+    // tslint:disable-next-line
+    console.log(gradingOverviews);
+    const arr = gradingOverviews.submissions;
+    const entries = arr.map((overview: any) => {
       const gradingOverview: GradingOverview = {
         assessmentId: overview.assessment.id,
         assessmentName: overview.assessment.title,
@@ -435,6 +475,9 @@ async function getGradingOverviews(
         gradeAdjustment: overview.adjustment,
         currentGrade: overview.grade + overview.adjustment,
         maxGrade: overview.assessment.maxGrade,
+        gradingStatus: overview.gradingStatus,
+        questionCount: overview.questionCount,
+        gradedCount: overview.gradedCount,
         // XP
         initialXp: overview.xp,
         xpAdjustment: overview.xpAdjustment,
@@ -444,6 +487,10 @@ async function getGradingOverviews(
       };
       return gradingOverview;
     });
+    return {
+      overviews: entries as GradingOverview[],
+      paginateDets: gradingOverviews.paginateDets
+    };
   } else {
     return null; // invalid accessToken _and_ refreshToken
   }

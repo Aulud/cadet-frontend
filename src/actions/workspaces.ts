@@ -173,6 +173,14 @@ export const updateEditorValue: ActionCreator<actionTypes.IAction> = (
   payload: { newEditorValue, workspaceLocation }
 });
 
+export const updatePaginateDetails: ActionCreator<actionTypes.IAction> = (paginateDets: any) => ({
+  type: actionTypes.UPDATE_PAGINATE_DETAILS,
+  payload: {
+    currPage: paginateDets.pageNo,
+    maxPages: paginateDets.maxPages
+  }
+});
+
 export const updateReplValue: ActionCreator<actionTypes.IAction> = (
   newReplValue: string,
   workspaceLocation: WorkspaceLocation

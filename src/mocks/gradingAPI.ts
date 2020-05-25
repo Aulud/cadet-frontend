@@ -19,7 +19,10 @@ export const mockGradingOverviews: GradingOverview[] = [
     studentId: 0,
     studentName: 'Al Gorithm',
     submissionId: 0,
-    groupName: '1D'
+    groupName: '1D',
+    gradingStatus: 'graded',
+    questionCount: 6,
+    gradedCount: 6
   },
   {
     gradeAdjustment: -2,
@@ -37,7 +40,10 @@ export const mockGradingOverviews: GradingOverview[] = [
     studentId: 0,
     studentName: 'Dee Sign',
     submissionId: 1,
-    groupName: '1F'
+    groupName: '1F',
+    gradingStatus: 'grading',
+    questionCount: 2,
+    gradedCount: 6
   },
   {
     gradeAdjustment: 4,
@@ -55,7 +61,10 @@ export const mockGradingOverviews: GradingOverview[] = [
     studentId: 1,
     studentName: 'May Trix',
     submissionId: 2,
-    groupName: '1F'
+    groupName: '1F',
+    gradingStatus: 'ungraded',
+    questionCount: 6,
+    gradedCount: 0
   }
 ];
 

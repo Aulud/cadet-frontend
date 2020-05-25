@@ -77,11 +77,13 @@ export interface ISessionState {
   readonly assessmentOverviews?: IAssessmentOverview[];
   readonly assessments: Map<number, IAssessment>;
   readonly announcements?: Announcement[];
+  readonly currPage?: number;
   readonly grade: number;
   readonly gradingOverviews?: GradingOverview[];
   readonly gradings: Map<number, Grading>;
   readonly historyHelper: HistoryHelper;
   readonly maxGrade: number;
+  readonly maxPages?: number;
   readonly maxXp: number;
   readonly refreshToken?: string;
   readonly role?: Role;
